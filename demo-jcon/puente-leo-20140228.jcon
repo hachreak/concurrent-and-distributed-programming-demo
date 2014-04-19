@@ -1,0 +1,97 @@
+GLOBAL{
+ int LEFT = 0;
+ int RIGHT = 1;
+ int cochesGo[] = new int[2];
+// int cochesGoRx = new int[2];
+ int cochesWait[] = new int[2];
+// int cochesWaitRx = 0;
+// int direction;
+ int MAXHILOS = 400;
+}
+
+TYPE {
+  Process Coche {
+    Semaforo otherdirection, mydirection, mutex;
+    int myside, otherside;
+   String go;
+	
+  public Coche(Semaforo _mydirection, Semaforo _otherdirection, Semaforo _mutex, int direction) {
+    mydirection = _mydirection;
+    mutex = _mutex;
+    otherdirection = _otherdirection;
+    myside = direction;
+    if(myside == GLOBAL.LEFT){
+      otherside = GLOBAL.RIGHT;
+      go = "LEFT";
+    }else{
+      otherside = GLOBAL.LEFT;
+      go = "RIGHT";
+    }
+  }
+
+  public void run() {
+//    while (true) {		
+      mutex.acquire();
+      // sign me on waiting list
+      GLOBAL.cochesWait[myside]++;
+      // if there are someone waiting in the other direction
+      if(GLOBAL.cochesWait[otherside] > 0){
+        // waikup 
+        otherdirection.release();
+      }
+
+      mutex.release();
+      //wait my turn
+      mydirection.acquire();
+      mutex.acquire();
+
+      // from the Waiting list
+      GLOBAL.cochesWait[myside]--;
+      // to the Go list
+      GLOBAL.cochesGo[myside]++;
+
+      mutex.release();
+
+      System.out.println("Car pass from: "+go+"... ");
+            	
+      mutex.acquire();
+  
+      // I passed! I'm on the other side of the bridge...
+      GLOBAL.cochesGo[myside]--;
+      // if someone waiting from the other side
+      if(GLOBAL.cochesWait[otherside] > 0){
+        // wakeup car from other side
+        otherdirection.release();
+      }else{
+        // wakeup car from my side
+        mydirection.release();
+      }
+
+      mutex.release();
+     }	
+  //}
+  } // Process	
+	
+} // Type
+
+MAIN
+{
+ GLOBAL.cochesGo[GLOBAL.LEFT] = 0;
+ GLOBAL.cochesGo[GLOBAL.RIGHT] = 0;
+ GLOBAL.cochesWait[GLOBAL.LEFT] = 0;
+ GLOBAL.cochesWait[GLOBAL.RIGHT] = 0;
+
+  Semaforo direction_left = new Semaforo (0);
+  Semaforo direction_right = new Semaforo (0);
+  Semaforo mutex = new Semaforo(1);
+
+  Coche coches[] = new Coche [GLOBAL.MAXHILOS];
+  for (int i=0;i<GLOBAL.MAXHILOS; i++) {
+    int direction = generarAleatorio(2);
+    if(direction  == GLOBAL.LEFT){
+      coches[i] = new Process Coche(direction_left, direction_right, mutex, direction);
+    }else{
+      coches[i] = new Process Coche(direction_right, direction_left, mutex, direction);
+    }
+  }
+}

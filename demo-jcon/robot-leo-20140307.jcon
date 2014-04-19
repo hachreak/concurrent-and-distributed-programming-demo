@@ -1,0 +1,115 @@
+
+GLOBAL {
+}
+
+TYPE{
+Process Reponedor {
+  Contenedor cont;
+  String name;
+
+  public Reponedor (Contenedor _cont, String _name) {
+     cont = _cont;
+     name = _name;
+  }
+
+  public void run () {
+    while(true){
+      // pone el producto en el contenedor
+      cont.poner(name);
+      System.out.println("["+name+"] Ponido elementos ");
+     }
+  }
+}
+
+Process Robot {
+
+  Contenedor cont_pieza, cont_adorno;
+  int cont = 0;
+  String name;
+
+  public Robot (Contenedor _cont_pieza, Contenedor _cont_adorno, String _name) {
+     cont_pieza = _cont_pieza;
+     cont_adorno = _cont_adorno;
+     name = _name;
+  }
+
+  public void run () {
+    while(true){
+       // coge una pieza del contenedor de PIEZAS
+       cont_pieza.coger(name, "pieza");
+      System.out.println("["+name+"] Tengo pieza");
+       // coge un adorno de su contenedor de ADORNOS
+       cont_adorno.coger(name, "adorno");
+      System.out.println("["+name+"] Tengo adorno");
+      // fabrica un producto
+      System.out.println("["+name+"] Fabrica producto");
+      for(int i=0; i<10; i++){
+        cont = i;
+      }
+     }
+  }
+}
+
+// non si possono passare parametri al monitor
+// urgente: proc che sblocca finisce in una coda speciale (cola cortesia)
+Monitor Contenedor {
+    int num_prod = 0;
+    Condicion no_vacio;
+    Condicion hay_prod;
+
+  public Contenedor () {
+    no_vacio = new Condicion();
+    hay_prod = new Condicion();
+  }
+
+  public void poner (String name) {
+    // puede poner solo cuando el contenedor de piezas/adornos esté vacìo
+    if(num_prod > 0){
+      no_vacio.delay();
+    }
+    // pone el producto
+    num_prod++;
+    System.out.println("["+name+"] Numero elementos en el contenidor "+num_prod);
+    // avisa el robot que hay producto
+    hay_prod.resume();
+  }
+
+  public void coger (String name, String type) {
+    // evitar que más de 1 robot esté cogiendo piezas al mismo tiempo
+    // si no hay pieza/adorno, espera!
+    if(num_prod == 0){
+      hay_prod.delay();
+    }
+    // coge elemento
+    num_prod--;
+    System.out.println("["+name+"] ["+type+"] Numero elementos en el contenidor: "+num_prod);
+    // avisa el reponedor que puede poner nuevo producto
+    no_vacio.resume();
+  }
+}
+
+} //TYPE
+
+
+MAIN {
+  Robot robots[] = new Robot[3];
+
+  Reponedor reponedor_pieza[]    = new Reponedor[1];
+  Reponedor reponedor_adorno[] = new Reponedor[3];
+
+  Contenedor cont_piezas = new Monitor Contenedor();
+  Contenedor cont_adorno_1 = new Monitor Contenedor();
+  Contenedor cont_adorno_2 = new Monitor Contenedor();
+  Contenedor cont_adorno_3 = new Monitor Contenedor();
+
+  // process
+  reponedor_pieza[0] = new Process Reponedor(cont_piezas, "Reponedor Piezas");
+  reponedor_adorno[0] = new Process Reponedor(cont_adorno_1, "Reponedor Adorno 1");
+  reponedor_adorno[1] = new Process Reponedor(cont_adorno_2, "Reponedor Adorno 2");
+  reponedor_adorno[2] = new Process Reponedor(cont_adorno_3, "Reponedor Adorno 3");
+
+  robots[0] = new Process Robot(cont_piezas, cont_adorno_1, "Robot 1");
+  robots[1] = new Process Robot(cont_piezas, cont_adorno_2, "Robot 2");
+  robots[2] = new Process Robot(cont_piezas, cont_adorno_3, "Robot 3");
+  
+}

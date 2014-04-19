@@ -1,0 +1,110 @@
+GLOBAL {
+  int numLec = 0; // Numero de lectores que están leyendo en un momento dado
+  int numCuentas = 100; // cuanto cuentas tiene la caje
+  int initCuenta = 10000; // inicialmente quanto dinero esta en cada cuenta
+  int cuentas[] = new int[GLOBAL.numCuentas]; // cuentas
+  int MAX_AUDITORIAS = 10; // numero de procesos Auditoria
+  int MAX_TRANSFERS = 100; // numero de procesos Transfer
+}
+
+TYPE {
+
+Process Auditoria  {
+  Semaforo tranfer, mutex;
+
+  public Auditoria (Semaforo _mutex, Semaforo _transfer) {
+    tranfer = _tranfer;
+    mutex = _mutex;
+  }
+  public void run () {
+    while (true) {
+      // START - Protocolo de entrada
+      mutex.acquire(); 
+      GLOBAL.numLec++; 
+      if (GLOBAL.numLec ==1) {
+        transfer.acquire();
+      }
+      mutex.release();
+      // END - protocolo de entrada
+
+      // ciclo per contare che ci siano 1Meuro
+      int total = 0;
+      for(int i=0; i<GLOBAL.numCuentas; i++){
+        total += GLOBAL.cuentas[i];
+      }
+      //  print se e' o meno 1 Meuro
+     
+      // START - protocolo de salida
+      mutex.acquire();
+      GLOBAL.numLec--;
+      if (GLOBAL.numLec == 0)
+       transfer.release();
+      mutex.release();
+      // END - protocolo de salida
+    }	
+  }
+}
+
+Process Transfer {
+  Semaforo transfer;
+  public Transfer (Semaforo _transfer) {
+    transfer = _transfer;
+  }
+  public void run () {
+    while (true) {
+      // START INIT
+      // elegir aleatoriamente una cantidad da transferir< 10000euro
+     int cuanto_dinero = generarAleatorio (GLOBAL.initCuenta);
+      // elegir aleatoriamente una cuenta da que sacar
+     int cuenta_src = generarAleatorio (GLOBAL.numCuentas);
+      // elegir aleatoriamente una cuenta da derramar
+     int cuenta_dest = generarAleatorio (GLOBAL.numCuentas);
+     // END INIT
+
+      // START - Protocolo de entrada
+      transfer.acquire();
+      // END - protocolo de entrada
+
+     // test se tiene suficiente dinero ne la cuenta     
+     int cuanto_transfiero = cuanto_dinero;
+     if(GLOBAL.cuentas[cuenta_src] < cuanto_dinero){
+        // la cuenta no tiene suficiente dinero, trasfiero todo lo que tiene
+        cuanto_transfiero = GLOBAL.cuentas[cuenta_src];
+     }
+      // retiro dinero
+      GLOBAL.cuentas[cuenta_src] -= cuanto_transfiero;
+      // deposito dinero
+      GLOBAL.cuentas[cuenta_dest] += cuanto_transfiero;
+
+      // START - protocolo de salida
+      transfer.release();
+      // END - protocolo de salida
+    }
+  }
+}
+} // TYPE
+
+MAIN {
+  // init quentas
+  for(int i=0; i<GLOBAL.numCuentas; i++){
+     GLOBAL.cuentas[i] = GLOBAL.initCuenta;
+  }
+
+  // init Semaforo mutex
+  Semaforo mutex= new Semaforo (1);
+  // init Semaforo escritor
+  Semaforo tranfer = new Semaforo (1);
+
+  // init auditorias
+  Auditoria auditorias = new Auditoria[GLOBAL.MAX_AUDITORIAS];
+  for(int i=0; i<GLOBAL.MAX_AUDITORIAS; i++){
+     auditorias[i] = new Process Auditoria(mutex, tranfer);
+  }
+
+  // init transfer
+  Transfer transfers = new Transfer[GLOBAL.MAX_AUDITORIAS];
+  for(int i=0; i<GLOBAL.MAX_TRANSFERS; i++){
+     transfers[i] = new Process Transfer(tranfer);
+  }
+
+}

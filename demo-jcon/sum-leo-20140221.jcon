@@ -1,0 +1,91 @@
+GLOBAL {
+  int dato = 0; // variable compartida
+  int suma = 0; // suma compartida
+}
+
+TYPE {
+
+Process Lector  {
+  Semaforo leer, suma_accion;
+
+  public Lector (Semaforo _leer, Semaforo _suma_accion) {
+    leer = _leer;
+   suma_accion = _suma_accion;
+  }
+  public void run () {
+    while (true) {
+      // espero por leer
+      leer.acquire();
+      // Lei un numero
+      GLOBAL.dato = generarAleatorio (100);
+      System.out.println ("Leido: "+GLOBAL.dato); // DEBUG
+      // el Sumador puede sumar esto dato
+      suma_accion.release();
+    }	
+  }
+}
+
+Process Sumador {
+  Semaforo suma_accion, escribe, he_escribido, leer;
+  int sum_executed;
+  public Sumador (Semaforo _suma_accion, Semaforo _escribe, Semaforo _he_escribido, Semaforo _leer) {
+    suma_accion = _suma_accion;
+    escribe = _escribe;
+    he_escribido = _he_escribido;
+    leer = _leer;
+    sum_executed = 0;
+  }
+  public void run () {
+    while (true) {
+      // espera que lector ha leido
+      suma_accion.acquire();
+      // sum numero
+      GLOBAL.suma += GLOBAL.dato;
+      System.out.println ("+: "+GLOBAL.dato + " =  "+GLOBAL.suma); // DEBUG
+      // ahora puede leer otro numero
+      leer.release();
+
+      sum_executed++;
+      // si soy el quinto,
+      if(sum_executed == 5){
+        // reinit sum_executed
+        sum_executed = 0;
+        // el Escritor puede escribir!
+        escribe.release();
+        // espero que Escritor termina
+        he_escribido.acquire();
+      }
+    }
+  }
+}
+
+Process Escritor {
+  Semaforo escribe, he_escribido;
+  public Escritor (Semaforo _escribe, Semaforo _he_escribido) {
+     escribe = _escribe;
+     he_escribido = _he_escribido;
+  }
+  public void run () {
+    while (true) {
+       // espera que el sumador he sumado
+       escribe.acquire();
+       // escribo el resultado
+       System.out.println ("Suma: "+GLOBAL.suma);
+       // ahora el sumador puede continuar!
+       he_escribido.release();
+    }
+  } 
+}
+
+} // TYPE
+
+MAIN {
+  Semaforo leer = new Semaforo(1); //
+  Semaforo suma_accion = new Semaforo(0); //
+  Semaforo escribe = new Semaforo(0); //
+  Semaforo he_escribido = new Semaforo(0); //
+
+  Lector lector = new Process Lector(leer, suma_accion);
+  Sumador sumador = new Process Sumador(suma_accion, escribe, he_escribido, leer);
+  Escritor escritor = new Process Escritor(escribe, he_escribido);
+}
